@@ -1,13 +1,37 @@
-/* chat.js - 对话坞 */
+/* chat.js - 对话面板 [V2.3-01] 改为 FAB + 底部升起面板 */
 window.Chat = (function () {
-  function init() {
-    const form = document.getElementById("chatForm");
-    const log = document.getElementById("chatLog");
-    const input = document.getElementById("chatInput");
+  let panel, overlay, fab, input, log;
 
-    // [V2.2] 首次打开欢迎气泡
+  function init() {
+    panel = document.getElementById("chatPanel");
+    overlay = document.getElementById("chatOverlay");
+    fab = document.getElementById("chatFab");
+    input = document.getElementById("chatInput");
+    log = document.getElementById("chatLog");
+    const form = document.getElementById("chatForm");
+    const closeBtn = document.getElementById("chatClose");
+
+    // 应用机器人头像和名字
+    if (window.Bots) Bots.apply();
+
+    // [V2.3-01] FAB 打开面板
+    fab.addEventListener("click", (e) => {
+      // 如果是拖拽结束的 click，不打开
+      if (fab.dataset.dragged === "1") {
+        fab.dataset.dragged = "";
+        return;
+      }
+      openPanel();
+    });
+    closeBtn.addEventListener("click", closePanel);
+    overlay.addEventListener("click", closePanel);
+
+    // [V2.3-01] FAB 拖拽
+    makeDraggable(fab);
+
+    // [V2.2] 首次打开欢迎气泡（面板未打开时也先记着，打开时能看到）
     if (!localStorage.getItem("talkcal.welcomed")) {
-      addBubble("ai", "👋 我是 TalkCal。直接说一句就行，比如「后天下午3点交论文，很急」，我会自动帮你排进日历。");
+      addBubble("ai", "👋 你好，我是" + (Bots.currentName() || "小谈") + "。直接说一句就行，比如「后天下午3点交论文，很急」，我会自动帮你排进日历。");
       localStorage.setItem("talkcal.welcomed", "1");
     }
 
@@ -19,14 +43,15 @@ window.Chat = (function () {
       });
     });
 
-    // [V2.2] 键盘快捷键：/ 聚焦输入框，Esc 失焦
+    // [V2.2] 键盘快捷键：/ 聚焦输入框，Esc 失焦/关闭面板
     document.addEventListener("keydown", (e) => {
-      if (e.key === "/" && document.activeElement !== input) {
+      if (e.key === "/" && document.activeElement !== input && !panel.classList.contains("show")) {
         e.preventDefault();
-        input.focus();
+        openPanel();
       }
-      if (e.key === "Escape" && document.activeElement === input) {
-        input.blur();
+      if (e.key === "Escape") {
+        if (document.activeElement === input) input.blur();
+        else if (panel.classList.contains("show")) closePanel();
       }
     });
 
@@ -67,7 +92,7 @@ window.Chat = (function () {
         const upcoming = Store.list({}).slice(0, 8);
         addBubble("ai", upcoming.length
           ? "接下来安排了：\n" + upcoming.map((e) => `· ${e.start_at.slice(5,16)} ${e.title}`).join("\n")
-          : "你目前还没有安排。在下方说一句就能排上。");
+          : "你目前还没有安排。点我就能排上。");
         restore(); return;
       }
 
@@ -185,8 +210,71 @@ window.Chat = (function () {
     }
   }
 
+  function openPanel() {
+    panel.hidden = false;
+    overlay.hidden = false;
+    requestAnimationFrame(() => {
+      panel.classList.add("show");
+      overlay.classList.add("show");
+    });
+    document.body.classList.add("chat-open");
+    setTimeout(() => input.focus(), 280);
+  }
+  function closePanel() {
+    panel.classList.remove("show");
+    overlay.classList.remove("show");
+    document.body.classList.remove("chat-open");
+    setTimeout(() => { panel.hidden = true; overlay.hidden = true; }, 280);
+  }
+
+  // [V2.3-01] FAB 拖拽（pointer events，鼠标触屏通用）
+  function makeDraggable(el) {
+    let startX, startY, origX, origY, moved = false;
+    el.addEventListener("pointerdown", (e) => {
+      // 只响应左键/触屏
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      const rect = el.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      origX = rect.left; origY = rect.top;
+      moved = false;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("dragging");
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (startX === undefined) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+      if (moved) {
+        const nx = Math.max(8, Math.min(window.innerWidth - rect.width - 8, origX + dx));
+        const ny = Math.max(8, Math.min(window.innerHeight - rect.height - 8, origY + dy));
+        el.style.right = "auto";
+        el.style.bottom = "auto";
+        el.style.left = nx + "px";
+        el.style.top = ny + "px";
+      }
+    });
+    el.addEventListener("pointerup", (e) => {
+      el.releasePointerCapture(e.pointerId);
+      el.classList.remove("dragging");
+      if (moved) {
+        el.dataset.dragged = "1";
+        // 持久化位置
+        const rect = el.getBoundingClientRect();
+        localStorage.setItem("talkcal.fab.x", String(rect.left));
+        localStorage.setItem("talkcal.fab.y", String(rect.top));
+      }
+      startX = undefined;
+    });
+    // 恢复上次位置
+    const sx = localStorage.getItem("talkcal.fab.x");
+    const sy = localStorage.getItem("talkcal.fab.y");
+    if (sx && sy) {
+      el.style.right = "auto"; el.style.bottom = "auto";
+      el.style.left = sx + "px"; el.style.top = sy + "px";
+    }
+  }
+
   function addBubble(kind, text) {
-    const log = document.getElementById("chatLog");
     const b = document.createElement("div");
     b.className = "bubble " + kind;
     b.textContent = text;
@@ -201,5 +289,5 @@ window.Chat = (function () {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   }
 
-  return { init };
+  return { init, open: openPanel, close: closePanel };
 })();

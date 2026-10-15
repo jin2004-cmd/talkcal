@@ -1,20 +1,20 @@
 /* TalkCal - V2 三皮肤系统 [V2-01..V2-03] */
-/* 默认 = light 白昼 */
+/* 默认 = light 白昼 [V2.3-04] 调更淡雅：暖灰白、细描边、柔和深灰蓝主色 */
 :root {
-  --bg: #f8fafc;
+  --bg: #fafaf9;
   --bg-elev: #ffffff;
-  --text: #0f172a;
-  --text-dim: #64748b;
-  --border: #e2e8f0;
-  --primary: #0f172a;
+  --text: #1f2937;
+  --text-dim: #9ca3af;
+  --border: #eef0f3;
+  --primary: #475569;
   --primary-fg: #ffffff;
   --high: #ef4444;
   --med: #f59e0b;
   --low: #10b981;
-  --glow: rgba(15, 23, 42, 0.06);
-  --radius: 14px;
+  --glow: rgba(71, 85, 105, 0.06);
+  --radius: 16px;
   --tabbar-h: 60px;
-  --chatdock-h: 132px;
+  --fab-size: 56px;
 }
 /* 暗夜 */
 [data-skin="dark"] {
@@ -168,16 +168,89 @@ button { font-family: inherit; cursor: pointer; }
 .btn-ghost.block { display: block; width: 100%; margin: 8px 0; }
 .saved-hint { color: var(--low); text-align: center; font-size: 13px; }
 
-/* Chat dock */
-.chat-dock {
-  position: fixed; left: 0; right: 0; bottom: var(--tabbar-h);
-  background: var(--bg-elev); border-top: 1px solid var(--border);
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-  z-index: 10; display: none;
+/* ============ V2.3-01 悬浮 FAB + 底部聊天面板 ============ */
+.chat-fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(var(--tabbar-h) + 20px + env(safe-area-inset-bottom));
+  width: var(--fab-size); height: var(--fab-size);
+  border-radius: 50%;
+  background: var(--primary);
+  border: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+  cursor: grab;
+  z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 180ms cubic-bezier(0.22,1,0.36,1), box-shadow 180ms ease;
+  touch-action: none;
 }
-body[data-current-view="calendar"] .chat-dock { display: block; }
+.chat-fab:hover { transform: scale(1.08); box-shadow: 0 12px 28px var(--glow); }
+.chat-fab:active { cursor: grabbing; transform: scale(0.96); }
+.chat-fab.dragging { transition: none; transform: scale(1.05); }
+.fab-avatar {
+  width: 78%; height: 78%;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.15));
+  pointer-events: none;
+}
+/* 非日历 tab 隐藏 FAB */
+body:not([data-current-view="calendar"]) .chat-fab { display: none; }
+
+/* 聊天遮罩 */
+.chat-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 35;
+  opacity: 0; transition: opacity 220ms ease;
+}
+.chat-overlay.show { opacity: 1; }
+
+/* 聊天面板（底部升起，半屏高） */
+.chat-panel {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
+  z-index: 40;
+  display: flex; flex-direction: column;
+  max-height: 70vh;
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateY(100%);
+  transition: transform 280ms cubic-bezier(0.22,1,0.36,1);
+}
+.chat-panel.show { transform: translateY(0); }
+.chat-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.chat-panel-title {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 600; font-size: 15px;
+}
+.head-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%; overflow: hidden;
+  background: var(--glow);
+}
+.chat-close {
+  background: transparent; border: none;
+  color: var(--text-dim); font-size: 18px;
+  width: 32px; height: 32px; border-radius: 50%;
+  cursor: pointer;
+}
+.chat-close:hover { background: var(--glow); }
+
 .chat-log {
-  max-height: 140px; overflow-y: auto; margin-bottom: 6px; display: flex; flex-direction: column; gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 180px;
+  max-height: 50vh;
 }
 .bubble {
   max-width: 85%; padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.4;
@@ -191,7 +264,11 @@ body[data-current-view="calendar"] .chat-dock { display: block; }
   margin-top: 6px; background: var(--primary); color: var(--primary-fg);
   border: none; padding: 6px 12px; border-radius: 8px; font-size: 13px;
 }
-.chat-form { display: flex; gap: 8px; }
+.chat-form {
+  display: flex; gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
 .chat-form input {
   flex: 1; padding: 10px 14px; border-radius: 999px;
   border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px;
@@ -433,4 +510,55 @@ body[data-current-view="calendar"] .chat-dock { display: block; }
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* ============ V2.3-03 机器人头像选择器 ============ */
+.avatar-picker {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-top: 6px;
+}
+.avatar-opt {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  padding: 6px;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.avatar-opt:hover { transform: translateY(-2px); }
+.avatar-opt.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+.avatar-opt svg { width: 100%; height: 100%; }
+
+/* ============ V2.3-02 已完成历史列表 ============ */
+.section-hist {
+  margin-top: 24px;
+  color: var(--text-dim);
+  font-size: 15px;
+  font-weight: 600;
+}
+.done-list li {
+  opacity: 0.75;
+  border-left-color: var(--low) !important;
+}
+.done-list li .title { text-decoration: line-through; }
+.done-list .done-badge {
+  font-size: 11px; color: var(--low);
+  background: rgba(16,185,129,0.1);
+  padding: 2px 8px; border-radius: 999px;
+  margin-left: 6px;
+}
+
+/* FAB 入场动效 */
+@keyframes fabPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.chat-fab { animation: fabPop 380ms cubic-bezier(0.22,1,0.36,1); }
+
+/* 聊天面板打开时 FAB 隐藏 */
+body.chat-open .chat-fab { opacity: 0; pointer-events: none; transform: scale(0.5); }
 

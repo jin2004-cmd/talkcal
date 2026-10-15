@@ -32,15 +32,31 @@
     if (name === "profile") renderProfile();
   }
 
-  // ---- 概览 [V2-20] stagger ----
+  // ---- 概览 [V2-20] stagger + [V2.3-02] 分"即将到来"+"已完成历史" ----
   function renderUpcoming() {
     const list = $("upcomingList");
     const empty = $("upcomingEmpty");
+    const doneList = $("doneList");
+    const doneEmpty = $("doneEmpty");
     list.innerHTML = "";
+    doneList.innerHTML = "";
+
     const from = new Date(); from.setHours(0,0,0,0);
     const to = new Date(from); to.setDate(to.getDate() + 7);
-    const evs = Store.list({ from: from.toISOString(), to: to.toISOString() })
-      .sort((a,b) => a.start_at.localeCompare(b.start_at));
+    const all = Store.list({});
+
+    // 即将到来：scheduled 状态，未来 7 天
+    const evs = all
+      .filter((e) => e.status !== "done" && !e.id.startsWith("__"))
+      .filter((e) => e.start_at >= from.toISOString() && e.start_at < to.toISOString())
+      .sort((a, b) => {
+        // 先按优先级（high=0, med=1, low=2），再按时间
+        const pw = { high: 0, med: 1, low: 2 };
+        const pa = pw[a.priority] ?? 1, pb = pw[b.priority] ?? 1;
+        if (pa !== pb) return pa - pb;
+        return a.start_at.localeCompare(b.start_at);
+      });
+
     empty.style.display = evs.length ? "none" : "block";
     evs.forEach((ev, i) => {
       const li = document.createElement("li");
@@ -49,13 +65,16 @@
         <div class="title"></div>
         <div class="when"></div>
       </div>
-      <div class="actions"><button data-act="del">✕</button></div>`;
+      <div class="actions">
+        <button data-act="done" title="完成">✓</button>
+        <button data-act="del" title="删除">✕</button>
+      </div>`;
       li.querySelector(".title").textContent = ev.title;
       li.querySelector(".when").textContent =
-        `${ev.start_at.replace("T"," ").slice(0,16)} · ${Priority.label(ev.priority)}`;
+        `${ev.start_at.replace("T"," ").slice(5,16)} · ${Priority.label(ev.priority)}`;
       li.querySelector('[data-act="del"]').onclick = async () => {
         await Store.remove(ev.id);
-        Anim.destroy(li);          // [V2-19]
+        Anim.destroy(li);
         Anim.buzz(20);
         if (window.Toast) {
           Toast.show({
@@ -64,8 +83,34 @@
           });
         }
       };
+      li.querySelector('[data-act="done"]').onclick = async () => {
+        await Store.update(ev.id, { status: "done" });
+        if (window.Confetti) Confetti.burst();
+        Anim.destroy(li);
+        renderUpcoming();
+      };
       list.appendChild(li);
-      Anim.fadeIn(li, { delay: i * 40 });  // [V2-20]
+      Anim.fadeIn(li, { delay: i * 40 });
+    });
+
+    // 已完成历史：倒序，像日记
+    const dones = all
+      .filter((e) => e.status === "done" && !e.id.startsWith("__"))
+      .sort((a, b) => (b.done_at || b.updated_at || b.start_at).localeCompare(a.done_at || a.updated_at || a.start_at))
+      .slice(0, 30);
+    doneEmpty.style.display = dones.length ? "none" : "block";
+    dones.forEach((ev, i) => {
+      const li = document.createElement("li");
+      li.className = "done-item";
+      li.innerHTML = `<div>
+        <div class="title"></div>
+        <div class="when"></div>
+      </div>`;
+      li.querySelector(".title").textContent = ev.title;
+      li.querySelector(".when").textContent =
+        `${ev.start_at.replace("T"," ").slice(0,10)} 完成 · ${Priority.label(ev.priority)}`;
+      doneList.appendChild(li);
+      Anim.fadeIn(li, { delay: i * 30 });
     });
   }
 
@@ -90,7 +135,31 @@
     $("setSbKey").value = localStorage.getItem("talkcal.sb.key") || "";
     $("setLeadMin").value = localStorage.getItem("talkcal.lead") || "10";
     $("setEvalThreshold").value = localStorage.getItem("talkcal.eval.threshold") || "7";
+    // [V2.3-03] 机器人名字 + 头像
+    $("setBotName").value = localStorage.getItem("talkcal.bot.name") || "小谈";
+    renderAvatarPicker();
   }
+
+  // [V2.3-03] 渲染头像选择器
+  function renderAvatarPicker() {
+    const box = $("botAvatarPicker");
+    box.innerHTML = "";
+    const cur = Bots.currentId();
+    Bots.list().forEach((b) => {
+      const opt = document.createElement("button");
+      opt.type = "button";
+      opt.className = "avatar-opt" + (b.id === cur ? " selected" : "");
+      opt.innerHTML = Bots.svg(b.id);
+      opt.title = b.name;
+      opt.onclick = () => {
+        localStorage.setItem("talkcal.bot.avatar", b.id);
+        Bots.apply();
+        renderAvatarPicker();
+      };
+      box.appendChild(opt);
+    });
+  }
+
   function saveSettings() {
     localStorage.setItem("talkcal.llm.base", $("setLlmBase").value.trim());
     localStorage.setItem("talkcal.llm.key", $("setLlmKey").value.trim());
@@ -99,6 +168,10 @@
     localStorage.setItem("talkcal.sb.key", $("setSbKey").value.trim());
     localStorage.setItem("talkcal.lead", $("setLeadMin").value);
     localStorage.setItem("talkcal.eval.threshold", $("setEvalThreshold").value);
+    // [V2.3-03] 机器人名字
+    const nm = $("setBotName").value.trim() || "小谈";
+    localStorage.setItem("talkcal.bot.name", nm);
+    Bots.apply();
     window.LLM.configure({
       base: $("setLlmBase").value.trim(),
       key: $("setLlmKey").value.trim(),
