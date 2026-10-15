@@ -37,23 +37,46 @@ window.Chat = (function () {
       typing.remove();
       if (parsed._degraded) addBubble("ai", "⚠️ " + parsed._degraded);
 
-      // 命令类
+      // [V2.1-01] 四意图分发：query / cancel / reschedule / create
       if (parsed.action === "query") {
-        const upcoming = Store.list({}).slice(0, 5);
+        const upcoming = Store.list({}).slice(0, 8);
         addBubble("ai", upcoming.length
           ? "接下来安排了：\n" + upcoming.map((e) => `· ${e.start_at.slice(5,16)} ${e.title}`).join("\n")
-          : "你目前还没有安排。");
+          : "你目前还没有安排。在下方说一句就能排上。");
         restore(); return;
       }
-      if (parsed.action === "cancel") {
+
+      if (parsed.action === "cancel" || parsed.action === "reschedule") {
         const kw = (parsed.target || parsed.title || "").slice(0, 6);
-        const hit = Store.list({}).find((e) => e.title.includes(kw));
-        if (hit) {
-          await Store.remove(hit.id);
-          addBubble("ai", `已取消「${hit.title}」（其他设备会同步消失，未来提醒也会取消）。`);
-        } else {
-          addBubble("ai", `没找到包含「${kw}」的事项，要取消的话告诉我更完整的标题。`);
+        const hits = Store.list({}).filter((e) =>
+          !e.id.startsWith("__") && (e.title.includes(kw) || kw.includes(e.title.slice(0,4)))
+        );
+
+        if (hits.length === 0) {
+          addBubble("ai", `没找到包含「${kw}」的事项。你可以先看看日历，或者说得更完整一点。`);
+          restore(); return;
         }
+
+        if (hits.length === 1) {
+          await applyIntent(parsed, hits[0]);
+          restore(); return;
+        }
+
+        // 多条匹配 → 弹候选卡片让用户选
+        const bub = addBubble("ai", `找到 ${hits.length} 个「${kw}」相关的，你指的是哪个？`);
+        const list = document.createElement("div");
+        list.className = "cand-list";
+        hits.slice(0, 4).forEach((ev) => {
+          const b = document.createElement("button");
+          b.className = "cand";
+          b.textContent = `${ev.start_at.slice(5,16)} · ${ev.title}`;
+          b.onclick = async () => {
+            list.remove();
+            await applyIntent(parsed, ev);
+          };
+          list.appendChild(b);
+        });
+        bub.appendChild(list);
         restore(); return;
       }
 
@@ -87,7 +110,7 @@ window.Chat = (function () {
         ${result.passed ? "" : `<div style="color:#f59e0b">⚠️ 质量门未达标，已取历史最佳（得分 ${ev._score||"?"}）</div>`}
         <button class="confirm">✅ 加入日历</button>`;
       bubble.querySelector(".confirm").onclick = async () => {
-        await Store.create(ev);
+        const created = await Store.create(ev);
         if (window.Confetti) Confetti.burst();       // 加入也小庆祝
         if (window.Anim) Anim.buzz(10);
         bubble.querySelector(".confirm").remove();
@@ -95,12 +118,46 @@ window.Chat = (function () {
         done.style.cssText = "color:#10b981;font-size:13px;margin-top:4px";
         done.textContent = "已加入 ✔";
         bubble.appendChild(done);
+        // [V2.1-05] 撤销 toast
+        if (window.Toast) {
+          Toast.show({
+            text: `已加入「${ev.title}」`,
+            undo: async () => { await Store.remove(created.id); }
+          });
+        }
       };
       log.appendChild(bubble);
       log.scrollTop = log.scrollHeight;
 
       restore();
     });
+
+    // [V2.1-01] 执行 cancel / reschedule 的实际动作
+    async function applyIntent(parsed, ev) {
+      if (parsed.action === "cancel") {
+        await Store.remove(ev.id);
+        addBubble("ai", `已取消「${ev.title}」（${ev.start_at.slice(5,16)}）。`);
+        if (window.Toast) {
+          Toast.show({
+            text: `已取消「${ev.title}」`,
+            undo: async () => { await Store.update(ev.id, { status: "scheduled" }); }
+          });
+        }
+      } else if (parsed.action === "reschedule") {
+        const oldStart = ev.start_at;
+        await Store.update(ev.id, {
+          start_at: parsed.start_at,
+          end_at: parsed.end_at,
+        });
+        addBubble("ai", `已把「${ev.title}」从 ${oldStart.slice(5,16)} 改到 ${parsed.start_at.slice(5,16)}。`);
+        if (window.Toast) {
+          Toast.show({
+            text: `已改期「${ev.title}」`,
+            undo: async () => { await Store.update(ev.id, { start_at: oldStart, end_at: ev.end_at }); }
+          });
+        }
+      }
+    }
   }
 
   function addBubble(kind, text) {

@@ -14,14 +14,18 @@ window.LLM = (function () {
 今天：{{TODAY}}
 
 输出 JSON 字段：
-- action: "create" | "cancel" | "query"
+- action: "create" | "cancel" | "reschedule" | "query"
+  - create: 新建事项
+  - cancel: 取消/删掉某事项
+  - reschedule: 改已有事项的时间（"把组会改到下午3点"）
+  - query: 查询安排（"我这周忙不忙"）
 - title: 事项标题（简短中文）
 - start_at: ISO 8601 本地时间
 - end_at: ISO 8601 本地时间（默认 start+1h）
 - priority: "high" | "med" | "low"（根据语气：很急/答辩/面试/航班→high；有空/随便→low；否则 med）
 - category: "work" | "study" | "life" | "health"
 - note: 备注（可选）
-- target: 当 action=cancel 时，描述要取消的事项关键词
+- target: 当 action=cancel 或 reschedule 时，要操作的事项关键词（如"组会"）
 
 只输出 JSON。`;
 
@@ -89,12 +93,15 @@ window.LLM = (function () {
 
     // action
     let action = "create";
-    if (/取消|删掉|不用了|取消掉/.test(text)) action = "cancel";
-    else if (/有啥|安排了什么|什么计划/.test(text)) action = "query";
+    if (/取消|删掉|不用了|取消掉|删了/.test(text)) action = "cancel";
+    else if (/改到|改期|提前到|推迟到|挪到|换到|改时间|调到|延后到|提前/.test(text)) action = "reschedule";
+    else if (/有啥|安排了什么|什么计划|忙不忙|这周|下周/.test(text)) action = "query";
 
-    // 标题：剥掉时间词
+    // 标题：剥掉时间词和操作词
     let title = text
-      .replace(/(今天|明天|后天|下周|周[日一二三四五六天]|上午|下午|傍晚|晚上|凌晨|早上|早上)?(\d{1,2})[:点](\d{1,2})?/g, "")
+      .replace(/(把|将|那个|那个|我的|一下|帮我|麻烦|记得|想|要)/g, "")
+      .replace(/(改到|改期|提前到|推迟到|挪到|换到|改时间|调到|延后到|提前|取消|删掉|不用了|取消掉|删了)/g, "")
+      .replace(/(今天|明天|后天|下周|周[日一二三四五六天]|上午|下午|傍晚|晚上|凌晨|早上)?(\d{1,2})[:点](\d{1,2})?/g, "")
       .replace(/(很急|很重要|记得|有空|随便)/g, "")
       .replace(/，|。|,|\.|！|\?/g, "").trim();
     if (!title) title = "待办事项";
@@ -107,11 +114,11 @@ window.LLM = (function () {
       start_at: toISO(target),
       end_at: toISO(end),
       priority: window.Priority.infer(text),
-      category: /(工作|老板|客户|会议|报告)/.test(text) ? "work"
+      category: /(工作|老板|客户|会议|报告|组会|开会)/.test(text) ? "work"
               : /(考试|学习|作业|论文|答辩|面试)/.test(text) ? "study"
-              : /(健身|跑步|医院|药|觉)/.test(text) ? "health" : "life",
+              : /(健身|跑步|医院|药|觉|体检)/.test(text) ? "health" : "life",
       note: "",
-      target: action === "cancel" ? title : "",
+      target: (action === "cancel" || action === "reschedule") ? title : "",
     };
   }
 

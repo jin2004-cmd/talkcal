@@ -23,6 +23,9 @@
   </div>
 </header>
 
+<!-- [V2.1-04] 今日议程条 -->
+<div id="todayStrip" class="today-strip"></div>
+
 <!-- 主视图区 -->
 <main id="views">
 
@@ -57,6 +60,7 @@
     <div class="profile-row"><span>登录账号</span><strong id="profileEmail">未登录（本地模式）</strong></div>
     <div class="profile-row"><span>已连设备</span><strong id="profileDevices">0</strong></div>
     <button id="exportBtn" class="btn-primary block">导出 JSON 备份</button>
+    <button id="exportIcsBtn" class="btn-primary block">📅 导出 .ics（手机日历同步提醒）</button>
     <button id="importBtn" class="btn-ghost block">导入 JSON</button>
     <input type="file" id="importFile" accept="application/json" hidden />
   </section>
@@ -139,6 +143,8 @@
 <script src="js/priority.js"></script>
 <script src="js/anim.js"></script>
 <script src="js/confetti.js"></script>
+<script src="js/toast.js"></script>
+<script src="js/ics.js"></script>
 <script src="js/eval.js"></script>
 <script src="js/llm.js"></script>
 <script src="js/store.js"></script>

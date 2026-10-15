@@ -53,11 +53,15 @@
       li.querySelector(".title").textContent = ev.title;
       li.querySelector(".when").textContent =
         `${ev.start_at.replace("T"," ").slice(0,16)} · ${Priority.label(ev.priority)}`;
-      li.querySelector('[data-act="del"]').onclick = () => {
-        if (confirm(`取消「${ev.title}」？`)) {
-          Store.remove(ev.id);
-          Anim.destroy(li);          // [V2-19]
-          Anim.buzz(20);
+      li.querySelector('[data-act="del"]').onclick = async () => {
+        await Store.remove(ev.id);
+        Anim.destroy(li);          // [V2-19]
+        Anim.buzz(20);
+        if (window.Toast) {
+          Toast.show({
+            text: `已取消「${ev.title}」`,
+            undo: async () => { await Store.update(ev.id, { status: "scheduled" }); }
+          });
         }
       };
       list.appendChild(li);
@@ -117,6 +121,9 @@
     const f = e.target.files[0]; if (!f) return;
     f.text().then((t) => { Store.import(t); alert("导入完成"); });
   };
+  // [V2.1-03] .ics 导出
+  $("exportIcsBtn").onclick = () => Ics.download();
+  Anim.press($("exportIcsBtn"));
 
   $("saveSettingsBtn").onclick = saveSettings;
   Anim.press($("saveSettingsBtn"));

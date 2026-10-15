@@ -90,6 +90,36 @@ window.CalendarView = (function () {
     for (let i = 1; i <= tail; i++) grid.appendChild(makeCell(i, true));
 
     renderAgenda();
+    renderTodayStrip();
+  }
+
+  // [V2.1-04] 今日议程条
+  function renderTodayStrip() {
+    const strip = document.getElementById("todayStrip");
+    if (!strip) return;
+    const todayStr = localDateStr(new Date());
+    const todays = eventsOn(todayStr)
+      .filter((e) => e.status !== "done")
+      .sort((a, b) => a.start_at.localeCompare(b.start_at));
+    const now = new Date();
+    const upcoming = todays.filter((e) => new Date(e.start_at) >= now);
+    const next = upcoming[0];
+    if (todays.length === 0) {
+      strip.innerHTML = `<span class="none">今天还没有安排，在下方说一句吧</span><span>›</span>`;
+    } else if (!next) {
+      strip.innerHTML = `<span class="next">今天 ${todays.length} 件事，都搞完啦 🎉</span><span>›</span>`;
+    } else {
+      const diffMin = Math.round((new Date(next.start_at) - now) / 60000);
+      const when = diffMin < 60
+        ? `${diffMin} 分钟后`
+        : `${Math.floor(diffMin / 60)} 小时 ${diffMin % 60} 分后`;
+      strip.innerHTML = `<span>今天 ${todays.length} 件事 · 下一个 <span class="next">${next.title}</span>（${when}）</span><span>›</span>`;
+    }
+    strip.onclick = () => {
+      // 点一下滚动到下方议程区
+      const ag = document.querySelector(".agenda-panel");
+      if (ag) ag.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
   }
 
   function makeCell(num, otherMonth) {
@@ -129,13 +159,28 @@ window.CalendarView = (function () {
         if (window.Confetti) Confetti.burst();
         if (window.Anim) Anim.buzz(15);
         Store.update(ev.id, { status: "done" });
+        if (window.Toast) {
+          Toast.show({
+            text: `完成「${ev.title}」🎉`,
+            undo: async () => { await Store.update(ev.id, { status: "scheduled" }); }
+          });
+        }
       };
-      // [V2-19] 取消：抖动 + 消散
+      // [V2-19] 取消：抖动 + 消散，不再弹原生 confirm，改撤销 toast
       li.querySelector('[data-act="del"]').onclick = () => {
-        if (!confirm(`取消「${ev.title}」？`)) return;
         if (window.Anim) { Anim.shake(li); Anim.buzz(20); }
-        setTimeout(() => Store.remove(ev.id), 200);
+        setTimeout(async () => {
+          await Store.remove(ev.id);
+          if (window.Toast) {
+            Toast.show({
+              text: `已取消「${ev.title}」`,
+              undo: async () => { await Store.update(ev.id, { status: "scheduled" }); }
+            });
+          }
+        }, 200);
       };
+      // 已完成的事项划线
+      if (ev.status === "done") li.classList.add("done");
       list.appendChild(li);
       if (window.Anim) Anim.fadeIn(li, { delay: i * 40 });   // [V2-20]
     });
