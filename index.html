@@ -125,7 +125,13 @@
 
 <!-- 对话坞（仅日历 Tab 显示） -->
 <div id="chatDock" class="chat-dock">
-  <div id="chatLog" class="chat-log"></div>
+  <div id="chatLog" class="chat-log" aria-live="polite"></div>
+  <!-- [V2.2] 示例快捷指令 -->
+  <div id="quickChips" class="quick-chips">
+    <button type="button" class="chip" data-q="后天下午3点交论文，很急">📝 后天3点交论文，很急</button>
+    <button type="button" class="chip" data-q="我这周忙不忙">📆 我这周忙不忙</button>
+    <button type="button" class="chip" data-q="取消明天的组会">❌ 取消明天组会</button>
+  </div>
   <form id="chatForm" class="chat-form">
     <input id="chatInput" placeholder='说一句，比如"后天下午3点交论文，很急"' autocomplete="off" />
     <button type="submit" class="btn-primary">发送</button>

@@ -1,5 +1,6 @@
 // sw.js - Service Worker：缓存静态资源 + 接收 Web Push
-const CACHE = "talkcal-v1";
+// [V2.2] 版本号 bump，加新文件，修本地开发改完代码还跑旧版的问题
+const CACHE = "talkcal-v2.2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,6 +13,10 @@ const ASSETS = [
   "./js/priority.js",
   "./js/store.js",
   "./js/push.js",
+  "./js/anim.js",
+  "./js/confetti.js",
+  "./js/toast.js",
+  "./js/ics.js",
   "./manifest.json",
   "./icon.svg",
 ];

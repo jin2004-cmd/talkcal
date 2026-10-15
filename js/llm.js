@@ -54,7 +54,11 @@ window.LLM = (function () {
     if (!resp.ok) throw new Error("LLM HTTP " + resp.status);
     const data = await resp.json();
     const txt = data.choices?.[0]?.message?.content || "{}";
-    return JSON.parse(txt);
+    try {
+      return JSON.parse(txt);
+    } catch (e) {
+      throw new Error("LLM 返回的不是 JSON：" + txt.slice(0, 80));
+    }
   }
 
   // ---- Mock 朴素解析 ----
@@ -101,7 +105,10 @@ window.LLM = (function () {
     let title = text
       .replace(/(把|将|那个|那个|我的|一下|帮我|麻烦|记得|想|要)/g, "")
       .replace(/(改到|改期|提前到|推迟到|挪到|换到|改时间|调到|延后到|提前|取消|删掉|不用了|取消掉|删了)/g, "")
-      .replace(/(今天|明天|后天|下周|周[日一二三四五六天]|上午|下午|傍晚|晚上|凌晨|早上)?(\d{1,2})[:点](\d{1,2})?/g, "")
+      // [V2.2] 先剥掉带时间的（如"下午3点"）
+      .replace(/(上午|下午|傍晚|晚上|凌晨|早上)?(\d{1,2})[:点](\d{1,2})?/g, "")
+      // [V2.2] 再剥掉独立的日期词（没时间数字也剥掉，修"明天开组会"残留"明天"的 bug）
+      .replace(/(今天|今日|明天|明日|后天|下周|周[日一二三四五六天])/g, "")
       .replace(/(很急|很重要|记得|有空|随便)/g, "")
       .replace(/，|。|,|\.|！|\?/g, "").trim();
     if (!title) title = "待办事项";

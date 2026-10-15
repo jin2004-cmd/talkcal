@@ -5,6 +5,31 @@ window.Chat = (function () {
     const log = document.getElementById("chatLog");
     const input = document.getElementById("chatInput");
 
+    // [V2.2] 首次打开欢迎气泡
+    if (!localStorage.getItem("talkcal.welcomed")) {
+      addBubble("ai", "👋 我是 TalkCal。直接说一句就行，比如「后天下午3点交论文，很急」，我会自动帮你排进日历。");
+      localStorage.setItem("talkcal.welcomed", "1");
+    }
+
+    // [V2.2] 快捷指令 chips：点一下自动填进输入框并发送
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        input.value = chip.dataset.q;
+        form.requestSubmit();
+      });
+    });
+
+    // [V2.2] 键盘快捷键：/ 聚焦输入框，Esc 失焦
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "/" && document.activeElement !== input) {
+        e.preventDefault();
+        input.focus();
+      }
+      if (e.key === "Escape" && document.activeElement === input) {
+        input.blur();
+      }
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = input.value.trim();
