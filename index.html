@@ -18,10 +18,29 @@
     <button id="todayBtn" class="btn-ghost">今天</button>
   </div>
   <div class="header-right">
+    <!-- [V2.5-01] 今日进度环 -->
+    <div id="todayRing" class="today-ring" title="今日完成进度">
+      <svg viewBox="0 0 36 36" width="32" height="32">
+        <circle cx="18" cy="18" r="15.5" class="ring-bg"/>
+        <circle cx="18" cy="18" r="15.5" class="ring-fg" id="ringFg"/>
+      </svg>
+      <span id="ringText" class="ring-text">0/0</span>
+    </div>
+    <!-- [V2.5-02] 搜索按钮 -->
+    <button id="searchBtn" class="btn-ghost" aria-label="搜索">🔍</button>
     <button id="prevMonth" class="btn-ghost" aria-label="上一月">‹</button>
     <button id="nextMonth" class="btn-ghost" aria-label="下一月">›</button>
   </div>
 </header>
+
+<!-- [V2.5-02] 全局搜索浮层 -->
+<div id="searchOverlay" class="search-overlay" hidden>
+  <div class="search-box">
+    <input id="searchInput" placeholder="搜标题、标签…" autocomplete="off" />
+    <div id="searchResults" class="search-results"></div>
+    <button id="searchClose" class="search-close">关闭</button>
+  </div>
+</div>
 
 <!-- [V2.1-04] 今日议程条 -->
 <div id="todayStrip" class="today-strip"></div>
@@ -135,6 +154,16 @@
 
     <button id="saveSettingsBtn" class="btn-primary block">保存设置</button>
     <p id="settingsSaved" class="saved-hint" hidden>已保存 ✔</p>
+
+    <!-- [V2.5-06] 关于 -->
+    <details class="setting-group">
+      <summary>ℹ️ 关于 TalkCal</summary>
+      <div class="field">
+        <p style="margin:6px 0;font-size:13px;opacity:.8">说一句话，自动排好日程。<br/>
+        V2.5 · 纯前端 PWA · 数据存在本地</p>
+        <a class="btn-ghost block" href="https://github.com/jin2004-cmd/talkcal" target="_blank" rel="noopener" style="margin-top:8px">⭐ GitHub 仓库</a>
+      </div>
+    </details>
   </section>
 </main>
 

@@ -562,3 +562,19 @@ body:not([data-current-view="calendar"]) .chat-fab { display: none; }
 /* 聊天面板打开时 FAB 隐藏 */
 body.chat-open .chat-fab { opacity: 0; pointer-events: none; transform: scale(0.5); }
 
+
+/* ===== [V2.5] 今日进度环 + 搜索浮层 ===== */
+.today-ring { position: relative; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; }
+.today-ring svg { transform: rotate(-90deg); }
+.today-ring .ring-bg { fill: none; stroke: rgba(120,130,150,.2); stroke-width: 3; }
+.today-ring .ring-fg { fill: none; stroke: #22c55e; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 97.4; stroke-dashoffset: 97.4; transition: stroke-dashoffset .6s ease; }
+.today-ring.all-done .ring-fg { stroke: #f59e0b; }
+.ring-text { position: absolute; font-size: 9px; font-weight: 700; color: var(--text); }
+
+.search-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding-top: 80px; backdrop-filter: blur(4px); }
+.search-box { background: var(--bg-elev); width: min(560px, 92vw); border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.search-box input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; box-sizing: border-box; }
+.search-results { margin-top: 10px; max-height: 50vh; overflow-y: auto; }
+.search-results .sr-item { padding: 10px; border-radius: 8px; cursor: pointer; }
+.search-results .sr-item:hover { background: rgba(120,130,150,.1); }
+.search-close { margin-top: 10px; width: 100%; padding: 8px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; }

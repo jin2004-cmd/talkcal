@@ -218,7 +218,88 @@
     Chat.init();
     switchView("calendar");
     registerSW();
+    updateTodayRing();
+    initSearch();
+    initLongPressAdd();
+    // [V2.5] 任何 Store 变化都刷新进度环
+    Store.onChange(() => updateTodayRing());
   });
+
+  // ---- [V2.5-01] 今日进度环 ----
+  function updateTodayRing() {
+    const all = Store.list({});
+    const today = new Date().toISOString().slice(0,10);
+    const todays = all.filter((e) => !e.id.startsWith("__") && e.start_at.slice(0,10) === today);
+    const total = todays.length;
+    const done = todays.filter((e) => e.status === "done").length;
+    const ring = $("todayRing");
+    const fg = $("ringFg");
+    $("ringText").textContent = `${done}/${total}`;
+    const C = 97.4; // 2*pi*15.5
+    fg.style.strokeDashoffset = total ? String(C * (1 - done/total)) : C;
+    ring.classList.toggle("all-done", total > 0 && done === total);
+    // [V2.5-04] 全部完成撒花
+    if (total > 0 && done === total && !localStorage.getItem("talkcal.celebrated." + today)) {
+      localStorage.setItem("talkcal.celebrated." + today, "1");
+      if (window.Confetti) { Confetti.burst(); setTimeout(() => Confetti.burst(), 300); }
+      if (window.Toast) Toast.show({ text: "🎉 今日任务全部完成！" });
+    }
+  }
+
+  // ---- [V2.5-02] 全局搜索 ----
+  function initSearch() {
+    const overlay = $("searchOverlay");
+    const input = $("searchInput");
+    const results = $("searchResults");
+    $("searchBtn").onclick = () => { overlay.hidden = false; input.focus(); };
+    $("searchClose").onclick = () => { overlay.hidden = true; input.value = ""; results.innerHTML = ""; };
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.click && ($("searchClose").click()); });
+    input.addEventListener("input", () => {
+      const q = input.value.trim().toLowerCase();
+      results.innerHTML = "";
+      if (!q) return;
+      const hits = Store.list({}).filter((e) => !e.id.startsWith("__") &&
+        (e.title || "").toLowerCase().includes(q)
+      ).slice(0, 20);
+      if (!hits.length) { results.innerHTML = '<div class="empty-hint">没找到相关事项</div>'; return; }
+      hits.forEach((ev) => {
+        const d = document.createElement("div");
+        d.className = "sr-item";
+        d.innerHTML = `<div style="font-weight:600"></div><div style="font-size:12px;opacity:.7"></div>`;
+        d.children[0].textContent = ev.title;
+        d.children[1].textContent = `${ev.start_at.replace("T"," ").slice(0,16)} · ${ev.status === "done" ? "✅ 已完成" : "⏳ 待办"}`;
+        d.onclick = () => {
+          overlay.hidden = true;
+          // 跳日历到该日期
+          if (window.CalendarView && CalendarView.jumpTo) CalendarView.jumpTo(ev.start_at.slice(0,10));
+        };
+        results.appendChild(d);
+      });
+    });
+  }
+
+  // ---- [V2.5-03] 日历长按日期 → 快捷添加 ----
+  function initLongPressAdd() {
+    const grid = $("calendarGrid");
+    let timer = null;
+    grid.addEventListener("pointerdown", (e) => {
+      const cell = e.target.closest(".day");
+      if (!cell) return;
+      const ymd = cell.dataset.date;
+      if (!ymd) return;
+      timer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(10);
+        if (window.Chat) Chat.open();
+        const inp = $("chatInput");
+        const [y, m, d] = ymd.split("-");
+        inp.placeholder = `${parseInt(m)}月${parseInt(d)}日 要做什么？`;
+        inp.focus();
+      }, 500);
+    });
+    ["pointerup","pointermove","pointercancel"].forEach((ev) =>
+      grid.addEventListener(ev, () => { if (timer) { clearTimeout(timer); timer = null; } })
+    );
+  }
 
   // ---- [V2.4] Service Worker 自动更新提示 ----
   function registerSW() {

@@ -60,12 +60,13 @@ window.CalendarView = (function () {
 
     // 前置补上月
     for (let i = startWeekday - 1; i >= 0; i--) {
-      grid.appendChild(makeCell(daysInPrev - i, true));
+      const d = new Date(viewYear, viewMonth - 1, daysInPrev - i);
+      grid.appendChild(makeCell(daysInPrev - i, true, localDateStr(d)));
     }
     // 当月
     for (let d = 1; d <= daysInMonth; d++) {
       const ds = `${viewYear}-${pad(viewMonth+1)}-${pad(d)}`;
-      const cell = makeCell(d, false);
+      const cell = makeCell(d, false, ds);
       if (ds === todayStr) cell.classList.add("today");
       if (ds === selectedStr) cell.classList.add("selected");
       // 圆点
@@ -122,11 +123,12 @@ window.CalendarView = (function () {
     };
   }
 
-  function makeCell(num, otherMonth) {
+  function makeCell(num, otherMonth, dateStr) {
     const b = document.createElement("button");
     b.className = "day-cell" + (otherMonth ? " other-month" : "");
     b.textContent = num;
-    if (window.Anim) Anim.press(b);   // [V2-14]
+    if (dateStr) b.dataset.date = dateStr;   // [V2.5-03] 长按用
+    if (window.Anim) Anim.press(b);
     return b;
   }
 
@@ -188,5 +190,13 @@ window.CalendarView = (function () {
 
   function pad(n) { return String(n).padStart(2, "0"); }
 
-  return { init, render };
+  // [V2.5-02] 搜索跳转到指定日期
+  function jumpTo(ymd) {
+    const [y, m, d] = ymd.split("-").map(Number);
+    viewYear = y; viewMonth = m - 1;
+    selectedDate = new Date(ymd + "T00:00:00");
+    render();
+  }
+
+  return { init, render, jumpTo };
 })();
