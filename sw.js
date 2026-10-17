@@ -1,6 +1,6 @@
 // sw.js - Service Worker：缓存静态资源 + 接收 Web Push
-// [V2.3] 版本号 bump，加 bots.js
-const CACHE = "talkcal-v2.3";
+// [V2.4] 加自动更新提示：监听 SKIP_WAITING 消息
+const CACHE = "talkcal-v2.4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -25,11 +25,35 @@ const ASSETS = [
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
+
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys()
+      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
+
+// [V2.4] 收到页面消息"SKIP_WAITING"时立即激活
+self.addEventListener("message", (e) => {
+  if (e.data === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  // 导航请求：网络优先，失败回退缓存
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then((resp) => {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put("./index.html", copy));
+          return resp;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then((r) => r || fetch(e.request).then((resp) => {
       const copy = resp.clone();

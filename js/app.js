@@ -217,5 +217,43 @@
     CalendarView.init();
     Chat.init();
     switchView("calendar");
+    registerSW();
   });
+
+  // ---- [V2.4] Service Worker 自动更新提示 ----
+  function registerSW() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      const promptUpdate = (sw) => {
+        // 页面顶部弹一个可点击的更新条
+        const bar = document.createElement("div");
+        bar.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#0f172a;color:#fff;padding:10px 16px;font-size:14px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.3);";
+        bar.innerHTML = '<span>发现新版本 ✨</span><button style="background:#22c55e;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;">立即刷新</button>';
+        bar.querySelector("button").onclick = () => {
+          sw.postMessage("SKIP_WAITING");
+          bar.remove();
+        };
+        document.body.appendChild(bar);
+      };
+
+      reg.addEventListener("updatefound", () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener("statechange", () => {
+          if (sw.state === "installed" && navigator.serviceWorker.controller) {
+            promptUpdate(sw);
+          }
+        });
+      });
+    });
+
+    // 新 SW 接管后自动刷新一次
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        refreshing = true;
+        location.reload();
+      }
+    });
+  }
 })();
