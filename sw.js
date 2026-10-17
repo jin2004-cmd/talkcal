@@ -1,6 +1,7 @@
 // sw.js - Service Worker：缓存静态资源 + 接收 Web Push
 // [V2.4] 加自动更新提示：监听 SKIP_WAITING 消息
-const CACHE = "talkcal-v2.5.1";
+// [V2.6] bump cache
+const CACHE = "talkcal-v2.6.0";
 const ASSETS = [
   "./",
   "./index.html",

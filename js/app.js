@@ -81,7 +81,7 @@
 
     const dones = all
       .filter((e) => e.status === "done" && !e.id.startsWith("__"))
-      .sort((a, b) => (b.done_at || b.updated_at || b.start_at).localeCompare(a.done_at || a.updated_at || a.start_at))
+      .sort((a, b) => (b.done_at || b.updated_at || b.start_at).localeCompare(a.done_at || a.updated_at || b.start_at))
       .slice(0, 30);
     doneEmpty.style.display = dones.length ? "none" : "block";
     dones.forEach((ev, i) => {
@@ -170,6 +170,8 @@
   window.addEventListener("DOMContentLoaded", async () => {
     initSkin();
     loadSettings();
+    $("cnMirrorBtn").onclick = () => window.open("https://gh-proxy.com/https://jin2004-cmd.github.io/talkcal/", "_blank");
+    Anim.press($("cnMirrorBtn"));
     window.LLM.configure({ base: localStorage.getItem("talkcal.llm.base") || "https://api.deepseek.com/v1", key: localStorage.getItem("talkcal.llm.key") || "", model: localStorage.getItem("talkcal.llm.model") || "deepseek-chat" });
     await Store.init();
     await PushClient.init();
